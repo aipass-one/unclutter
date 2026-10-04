@@ -12,7 +12,7 @@ import {
 } from "../lib/aipass";
 import { evaluate, evaluationCall, evaluationRequest } from "../lib/jev";
 import { hasConnection, shouldAutoAnalyze, type Snapshot } from "../lib/model";
-import { resolveProvider } from "../lib/providers";
+import { resolveProvider, keyOwner, providerApiKey } from "../lib/providers";
 import config from "../.aipass/config.json";
 
 const callback = "https://test.chromiumapp.org/aipass";
@@ -313,6 +313,36 @@ test("existing provider defaults and automatic opt-in are preserved", () => {
     shouldAutoAnalyze({ ...settings, mode: "auto", aipassConnected: true }, null, true),
     false,
   );
+});
+
+test("switching through AI Pass never reassigns a legacy provider key to a different endpoint", () => {
+  for (const original of [undefined, "vercel", "typesafe"] as const) {
+    let stored: { provider?: string; apiKey: string; apiKeyProvider?: unknown } = {
+      provider: original,
+      apiKey: "private-provider-key",
+    };
+    const owner = original ?? "vercel";
+    assert.equal(providerApiKey(stored, owner), "private-provider-key");
+    for (const provider of ["aipass", "typesafe", "vercel", "aipass", owner] as const) {
+      stored = { ...stored, provider, apiKeyProvider: keyOwner(stored) };
+      assert.equal(
+        providerApiKey(stored, provider),
+        provider === owner ? "private-provider-key" : "",
+      );
+    }
+    assert.equal(stored.apiKey, "private-provider-key");
+  }
+});
+
+test("unknown providers and unknown credential owners cannot fall back to sending a key to Gateway", () => {
+  for (const stored of [
+    { provider: "unknown", apiKey: "private" },
+    { provider: "aipass", apiKey: "private" },
+    { provider: "vercel", apiKey: "private", apiKeyProvider: "unknown" },
+    { provider: "vercel", apiKey: "private", apiKeyProvider: null },
+  ])
+    for (const provider of ["vercel", "typesafe", "aipass"] as const)
+      assert.equal(providerApiKey(stored, provider), "");
 });
 
 test("AI Pass sends Jev's native decision schema with OAuth client binding, without page URLs or Gateway headers", () => {

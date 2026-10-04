@@ -1,7 +1,14 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 import { evaluate } from "../lib/jev";
-import { providers, providerKeyLabel, resolveProvider } from "../lib/providers";
+import {
+  providers,
+  providerKeyLabel,
+  resolveProvider,
+  keyOwner,
+  providerApiKey,
+  type Provider,
+} from "../lib/providers";
 import { AIPASS_SESSION_KEY, createAiPassAuth } from "../lib/aipass";
 import {
   contextSchema,
@@ -74,14 +81,27 @@ export default defineBackground(() => {
     .setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" })
     .catch(() => undefined);
   const settings = async (): Promise<Settings> => {
-    const data = await browser.storage.local.get(["enabled", "apiKey", "mode", "provider"]);
+    const data = await browser.storage.local.get([
+      "enabled",
+      "apiKey",
+      "apiKeyProvider",
+      "mode",
+      "provider",
+    ]);
+    const provider = resolveProvider(data.provider);
     return {
       enabled: data.enabled !== false,
-      apiKey: typeof data.apiKey === "string" ? data.apiKey : "",
-      provider: resolveProvider(data.provider),
+      apiKey: providerApiKey(data, provider),
+      provider,
       aipassConnected: (await auth.status()).connected,
       mode: data.mode === "auto" ? "auto" : "manual",
     };
+  };
+  const selectProvider = async (provider: Provider) => {
+    const previous = await browser.storage.local.get(["provider", "apiKeyProvider"]);
+    // Persist the old key's owner and the new selection in the same write.
+    // AI Pass login and ordinary provider switches use the same transition.
+    await browser.storage.local.set({ provider, apiKeyProvider: keyOwner(previous) });
   };
   const profile = async (context: PageContext): Promise<Profile | null> => {
     const key = profileKey(context.key);
@@ -264,7 +284,7 @@ export default defineBackground(() => {
         };
       }
       if (message.type === "aipassLogin") {
-        await browser.storage.local.set({ provider: "aipass" });
+        await selectProvider("aipass");
         // The action popup closes when Chrome opens OAuth. Return immediately;
         // reopening the popup reads the background's durable session/status.
         void auth
@@ -283,15 +303,19 @@ export default defineBackground(() => {
       }
       if (message.type === "saveKey") {
         if (message.provider === "aipass") throw new Error("Use Sign in with AI Pass.");
-        await browser.storage.local.set({ apiKey: message.key, provider: message.provider });
+        await browser.storage.local.set({
+          apiKey: message.key,
+          apiKeyProvider: message.provider,
+          provider: message.provider,
+        });
         return null;
       }
       if (message.type === "provider") {
-        await browser.storage.local.set({ provider: message.provider });
+        await selectProvider(message.provider);
         return null;
       }
       if (message.type === "removeKey") {
-        await browser.storage.local.remove("apiKey");
+        await browser.storage.local.remove(["apiKey", "apiKeyProvider"]);
         return null;
       }
       if (message.type === "global") {

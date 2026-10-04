@@ -133,7 +133,7 @@ For Firefox 140+, run `bun run build:firefox`, open `about:debugging#/runtime/th
 
 Bring your own [Vercel AI Gateway](https://vercel.com/ai-gateway) key or [TypeSafe AI key](https://console.typesafe.ai/settings/keys) (the same kind used as `JEV_KEY` / `TYPESAFE_API_KEY`). Configure it in the extension popup, not in source code or build-time environment variables. No key or shared account is bundled.
 
-**One provider API key is stored, separately from the AI Pass connection.** Switching between Gateway and TypeSafe persists immediately and reuses that key for the next analysis; paste a matching key if the providers use different credentials. Saving a key saves the selected provider with it. Removing the key does not reset the provider. Existing installations without a provider setting default to Gateway. Saved templates remain usable offline regardless of provider.
+**One provider API key is stored, separately from the AI Pass connection.** The key is bound to the provider it was saved for. Switching to another provider requires that provider's key; switching back reuses the saved key until you replace or remove it. AI Pass OAuth tokens are stored separately and are never sent to another provider. Saving a key saves the selected provider with it. Removing the key does not reset the provider. Existing installations without a provider setting default to Gateway. Saved templates remain usable offline regardless of provider.
 
 AI Pass discovers Jev through its public decision-model catalog and uses `POST https://aipass.one/oauth2/v1/decisions` with the user's OAuth token and public client binding.
 

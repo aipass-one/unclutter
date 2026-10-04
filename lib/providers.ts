@@ -17,6 +17,23 @@ export function providerKeyLabel(provider: Provider): string {
   return provider === "typesafe" ? "TypeSafe / Jev" : "Vercel AI Gateway";
 }
 
+type StoredCredential = { provider?: unknown; apiKey?: unknown; apiKeyProvider?: unknown };
+
+/** Bind legacy keys to their original provider before changing a selection. */
+export function keyOwner(stored: StoredCredential): "vercel" | "typesafe" | null {
+  const owner = Object.hasOwn(stored, "apiKeyProvider")
+    ? stored.apiKeyProvider
+    : stored.provider === undefined
+      ? "vercel"
+      : stored.provider;
+  return owner === "vercel" || owner === "typesafe" ? owner : null;
+}
+
+/** An unknown or different provider never receives a saved credential. */
+export function providerApiKey(stored: StoredCredential, provider: Provider): string {
+  return keyOwner(stored) === provider && typeof stored.apiKey === "string" ? stored.apiKey : "";
+}
+
 export function smokeCredentials(env: Record<string, string | undefined>): {
   provider: Provider;
   key: string;
