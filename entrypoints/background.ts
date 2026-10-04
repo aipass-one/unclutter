@@ -66,6 +66,12 @@ export default defineBackground(() => {
   const jobs = new Map<string, Promise<void>>();
   const tabJobs = new Set<number>();
   const tabErrors = new Map<number, string>();
+  let credentialWrites: Promise<void> = Promise.resolve();
+  const changeCredentials = (change: () => Promise<void>) => {
+    const next = credentialWrites.then(change);
+    credentialWrites = next.catch(() => undefined);
+    return next;
+  };
   const auth = createAiPassAuth({
     read: async () => (await browser.storage.local.get(AIPASS_SESSION_KEY))[AIPASS_SESSION_KEY],
     write: async (session) => {
@@ -97,12 +103,13 @@ export default defineBackground(() => {
       mode: data.mode === "auto" ? "auto" : "manual",
     };
   };
-  const selectProvider = async (provider: Provider) => {
-    const previous = await browser.storage.local.get(["provider", "apiKeyProvider"]);
-    // Persist the old key's owner and the new selection in the same write.
-    // AI Pass login and ordinary provider switches use the same transition.
-    await browser.storage.local.set({ provider, apiKeyProvider: keyOwner(previous) });
-  };
+  const selectProvider = (provider: Provider) =>
+    changeCredentials(async () => {
+      const previous = await browser.storage.local.get(["provider", "apiKeyProvider"]);
+      // Persist the old key's owner and the new selection in the same write.
+      // AI Pass login and ordinary provider switches use the same transition.
+      await browser.storage.local.set({ provider, apiKeyProvider: keyOwner(previous) });
+    });
   const profile = async (context: PageContext): Promise<Profile | null> => {
     const key = profileKey(context.key);
     const parsed = profileSchema.safeParse((await browser.storage.local.get(key))[key]);
@@ -303,11 +310,13 @@ export default defineBackground(() => {
       }
       if (message.type === "saveKey") {
         if (message.provider === "aipass") throw new Error("Use Sign in with AI Pass.");
-        await browser.storage.local.set({
-          apiKey: message.key,
-          apiKeyProvider: message.provider,
-          provider: message.provider,
-        });
+        await changeCredentials(() =>
+          browser.storage.local.set({
+            apiKey: message.key,
+            apiKeyProvider: message.provider,
+            provider: message.provider,
+          }),
+        );
         return null;
       }
       if (message.type === "provider") {
@@ -315,7 +324,7 @@ export default defineBackground(() => {
         return null;
       }
       if (message.type === "removeKey") {
-        await browser.storage.local.remove(["apiKey", "apiKeyProvider"]);
+        await changeCredentials(() => browser.storage.local.remove(["apiKey", "apiKeyProvider"]));
         return null;
       }
       if (message.type === "global") {
