@@ -4,7 +4,7 @@ This AI Pass integration is maintained at [aipass-one/unclutter](https://github.
 
 ## Install in Chrome, Edge, or Brave
 
-1. Download the Chrome ZIP from [Releases](https://github.com/aipass-one/unclutter/releases/latest) and extract it into a folder you will keep.
+1. Download the Chrome ZIP from [Releases](https://github.com/aipass-one/unclutter/releases) and extract it into a folder you will keep.
 2. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 3. Pin **Unclutter**, then refresh the website you want to clean up.
 4. Open the extension, expand **Connection**, select **AI Pass**, and click **Sign in with AI Pass**. Finish signing in and granting app access in the AI Pass window.

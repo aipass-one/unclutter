@@ -107,14 +107,14 @@ WXT extension for Chrome / Chromium and Firefox. Jev classifies nonessential pag
 
 Choose **Connection → AI Pass → Sign in with AI Pass** to use Jev with your own AI Pass balance, without pasting an API key. Chrome/Edge/Brave builds support sign-in. New analyses use your balance; saved cleanup rules work offline and while signed out. The existing Gateway and TypeSafe providers remain available.
 
-The AI Pass fork offers a [ready-to-load Chrome ZIP](https://github.com/aipass-one/unclutter/releases/latest). See [installation and integration details](docs/ai-pass.md).
+The AI Pass fork offers a [ready-to-load Chrome ZIP](https://github.com/aipass-one/unclutter/releases). See [installation and integration details](docs/ai-pass.md).
 
 ## Install from source
 
 Requires [Bun](https://bun.sh) and Node.js 22.12 or newer.
 
 ```sh
-git clone https://github.com/kitze/unclutter.git
+git clone https://github.com/aipass-one/unclutter.git
 cd unclutter
 bun install --frozen-lockfile
 bun run build
