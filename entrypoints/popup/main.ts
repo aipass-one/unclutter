@@ -21,6 +21,8 @@ const provider = get<HTMLSelectElement>("provider");
 const errorBox = get("error");
 let tabId: number | undefined;
 let hasKey = false;
+let connected = false;
+let aipass = { connected: false, signingIn: false, error: null as string | null };
 let working = false;
 let savedProvider: Provider = "vercel";
 let current: (PageState & { busy: boolean; error: string | null }) | null = null;
@@ -40,21 +42,43 @@ function error(error: unknown) {
 }
 function render() {
   const busy = working || current?.busy;
-  analyze.disabled = !current || !hasKey || !global.checked || !!busy;
+  analyze.disabled = !current || !connected || !global.checked || !!busy;
   analyze.textContent = busy ? "Analyzing…" : current?.profile ? "Re-analyze" : "Analyze page";
   toggle.hidden = !current?.profile;
   toggle.disabled = !!busy || !global.checked;
   toggle.textContent = current?.profile?.enabled ? "Pause" : "Resume";
   const selectedProvider = resolveProvider(provider.value);
-  provider.disabled = working;
+  provider.disabled = working || aipass.signingIn;
+  const usesAiPass = selectedProvider === "aipass";
+  get("key-form").hidden = usesAiPass;
+  get("aipass-connection").hidden = !usesAiPass;
+  const login = get<HTMLButtonElement>("aipass-login");
+  login.hidden = aipass.connected;
+  login.disabled = working || aipass.signingIn;
+  login.textContent = aipass.signingIn
+    ? "Finish sign-in in the AI Pass window…"
+    : "Sign in with AI Pass";
+  get("aipass-status").textContent =
+    aipass.error ??
+    (aipass.connected
+      ? "Connected to AI Pass"
+      : "Sign in securely in the AI Pass window. Then reopen Unclutter to analyze a page.");
+  get("aipass-logout").hidden = !aipass.connected && !aipass.signingIn;
+  get<HTMLButtonElement>("aipass-logout").disabled = working;
   get<HTMLInputElement>("api-key").placeholder = `Paste ${providerKeyLabel(selectedProvider)} key`;
-  get("key-status").textContent = hasKey
-    ? `${selectedProvider === "typesafe" ? "TypeSafe" : "Vercel"} · Key saved`
-    : "API key required";
+  get("key-status").textContent = usesAiPass
+    ? aipass.connected
+      ? "AI Pass · Connected"
+      : aipass.signingIn
+        ? "Signing in…"
+        : "Sign in with AI Pass"
+    : hasKey
+      ? `${providerKeyLabel(selectedProvider)} · Key saved`
+      : "API key required";
   get("disclosure").textContent =
-    `Analyze sends up to 60 element descriptions to ${providerLabel(selectedProvider)}. Main article text and form values are excluded; snippets may still contain personal data.`;
+    `Analyze sends up to 60 element descriptions to ${usesAiPass ? "AI Pass and TypeSafe AI (Jev)" : providerLabel(selectedProvider)}. Main article text and form values are excluded; snippets may still contain personal data. ${usesAiPass ? "New analyses use your AI Pass balance." : "API charges apply."}`;
   get("auto-disclosure").textContent =
-    `On page visit automatically sends element snippets to ${providerLabel(selectedProvider)} for new templates. Snippets may contain personal data. API charges apply. Cached templates are reused.`;
+    `On page visit automatically sends element snippets to ${usesAiPass ? "AI Pass and TypeSafe AI (Jev)" : providerLabel(selectedProvider)} for new templates. Snippets may contain personal data. ${usesAiPass ? "Each new analysis uses your AI Pass balance." : "API charges apply."} Cached templates are reused.`;
   get("remove-key").hidden = !hasKey;
   get("disclosure").hidden = !current || mode.value === "auto";
   get("auto-disclosure").hidden = mode.value !== "auto";
@@ -121,12 +145,16 @@ async function load() {
   const config = await request<{
     enabled: boolean;
     hasKey: boolean;
+    connected: boolean;
+    aipass: typeof aipass;
     mode: "manual" | "auto";
     provider: Provider;
   }>({
     type: "settings",
   });
   hasKey = config.hasKey;
+  connected = config.connected;
+  aipass = config.aipass;
   global.checked = config.enabled;
   mode.value = config.mode;
   savedProvider = resolveProvider(config.provider);
@@ -144,12 +172,13 @@ async function load() {
   render();
   clearTimeout(poll);
   if (
+    aipass.signingIn ||
     current?.busy ||
     (current &&
       !current.error &&
       config.mode === "auto" &&
       config.enabled &&
-      hasKey &&
+      connected &&
       current.profile?.enabled !== false &&
       (!current.profile || current.profile.analysisVersion < ANALYSIS_VERSION))
   )
@@ -165,6 +194,7 @@ async function act(message: object) {
     await request(message);
     await load();
   } catch (err) {
+    await load().catch(() => undefined);
     provider.value = savedProvider;
     error(err);
   } finally {
@@ -186,6 +216,8 @@ provider.addEventListener(
 );
 get("forget").addEventListener("click", () => void act({ type: "forget", tabId }));
 get("remove-key").addEventListener("click", () => void act({ type: "removeKey" }));
+get("aipass-login").addEventListener("click", () => void act({ type: "aipassLogin" }));
+get("aipass-logout").addEventListener("click", () => void act({ type: "aipassLogout" }));
 get("key-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const input = get<HTMLInputElement>("api-key");
@@ -208,5 +240,5 @@ void (async () => {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   tabId = tab?.id;
   await load();
-  get<HTMLDetailsElement>("connection").open = !hasKey;
+  get<HTMLDetailsElement>("connection").open = !connected;
 })().catch(error);

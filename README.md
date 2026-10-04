@@ -1,7 +1,9 @@
 <!-- readme-sync:repo:start -->
+
 # unclutter
 
 WXT browser extension: Jev\-powered page clutter removal with reusable template rules\.
+
 <!-- readme-sync:repo:end -->
 
 <!-- readme-sync:header:start -->
@@ -11,7 +13,6 @@ WXT browser extension: Jev\-powered page clutter removal with reusable template 
   <a href="https://kitze.io/?ref=kitze%2Funclutter">kitze.io</a> · <a href="https://x.com/thekitze?ref=kitze%2Funclutter">X</a> · <a href="https://youtube.com/kitze?ref=kitze%2Funclutter">YouTube</a>
 </p>
 <br clear="all">
-
 
 <h3>More projects by Kitze</h3>
 <table>
@@ -100,7 +101,13 @@ WXT browser extension: Jev\-powered page clutter removal with reusable template 
 
 # Unclutter
 
-WXT extension for Chrome / Chromium and Firefox. Jev classifies nonessential page elements through Vercel AI Gateway or TypeSafe AI directly; the extension stores and reapplies local hiding rules by page template.
+WXT extension for Chrome / Chromium and Firefox. Jev classifies nonessential page elements through AI Pass, Vercel AI Gateway, or TypeSafe AI directly; the extension stores and reapplies local hiding rules by page template.
+
+## AI Pass sign-in
+
+Choose **Connection → AI Pass → Sign in with AI Pass** to use Jev with your own AI Pass balance, without pasting an API key. Chrome/Edge/Brave builds support sign-in. New analyses use your balance; saved cleanup rules work offline and while signed out. The existing Gateway and TypeSafe providers remain available.
+
+The AI Pass fork offers a [ready-to-load Chrome ZIP](https://github.com/aipass-one/unclutter/releases/latest). See [installation and integration details](docs/ai-pass.md).
 
 ## Install from source
 
@@ -117,7 +124,7 @@ bun run build
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and select `.output/chrome-mv3` inside the cloned repository.
 4. Pin Unclutter, refresh any already-open website, then open its popup.
-5. Under **Connection**, choose **Vercel AI Gateway** or **TypeSafe AI**, paste the matching API key, and save it.
+5. Under **Connection**, choose **AI Pass** and sign in, or choose **Vercel AI Gateway** / **TypeSafe AI**, paste the matching API key, and save it.
 6. Choose **Manual** (default) and click **Analyze page**, or select **On page visit**. Your selected provider must have credits / Jev access.
 
 After replacing unpacked builds, click **Reload** on the extension card and refresh website tabs. Existing keys/settings stay in place. V1 templates show **Update available**; **Re-analyze** once to include cookie dialogs, or automatic mode upgrades them once while preserving paused templates and keep-visible choices.
@@ -126,7 +133,9 @@ For Firefox 140+, run `bun run build:firefox`, open `about:debugging#/runtime/th
 
 Bring your own [Vercel AI Gateway](https://vercel.com/ai-gateway) key or [TypeSafe AI key](https://console.typesafe.ai/settings/keys) (the same kind used as `JEV_KEY` / `TYPESAFE_API_KEY`). Configure it in the extension popup, not in source code or build-time environment variables. No key or shared account is bundled.
 
-**One key is stored.** Switching the provider persists immediately and reuses that key for the next analysis; paste a matching key if the providers use different credentials. Saving a key saves the selected provider with it. Removing the key does not reset the provider. Existing installations without a provider setting default to Gateway. Saved templates remain usable offline regardless of provider.
+**One provider API key is stored, separately from the AI Pass connection.** Switching between Gateway and TypeSafe persists immediately and reuses that key for the next analysis; paste a matching key if the providers use different credentials. Saving a key saves the selected provider with it. Removing the key does not reset the provider. Existing installations without a provider setting default to Gateway. Saved templates remain usable offline regardless of provider.
+
+AI Pass discovers Jev through its public decision-model catalog and uses `POST https://aipass.one/oauth2/v1/decisions` with the user's OAuth token and public client binding.
 
 TypeSafe direct uses `POST https://api.typesafe.ai/v1/systemone`, Bearer authentication, and body model `jev-latest`. Gateway uses its evaluation-model v4 endpoint and `typesafe-ai/jev` headers. TypeSafe requests never carry Gateway protocol headers; Gateway requests never carry the TypeSafe model field.
 
@@ -155,9 +164,9 @@ This is a conservative heuristic, not perfect template recognition. Different ro
 
 ## Privacy and safety
 
-- API key stays in local extension storage, **not encrypted** and not synced. Chrome restricts storage access to trusted extension contexts. It is never sent to page content scripts, websites, logs, or repository source.
+- API keys and AI Pass OAuth tokens stay in local extension storage, **not encrypted** and not synced. Chrome restricts storage access to trusted extension contexts. Credentials are never sent to page content scripts, websites, logs, or repository source. AI Pass tokens are sent only to the fixed AI Pass endpoints.
 - Only extension background code calls the selected provider's fixed endpoint. Popup-origin checks protect settings/manual analysis. Page-visit requests are validated and require the user's saved automatic-mode opt-in.
-- Each analysis sends up to 60 bounded candidate descriptions (tag, structural signals, short text, position, match count). No full URL, query string, page title, main article body, form values, cookies, or raw HTML is sent. Email-like and long numeric strings in snippets are redacted, but this is **not a guarantee of anonymization**. Do not analyze sensitive pages if sending snippets to your selected provider is inappropriate.
+- When AI Pass is selected, analysis is routed through AI Pass to TypeSafe AI. Each analysis sends up to 60 bounded candidate descriptions (tag, structural signals, short text, position, match count). No full URL, query string, page title, main article body, form values, cookies, or raw HTML is sent. Email-like and long numeric strings in snippets are redacted, but this is **not a guarantee of anonymization**. Do not analyze sensitive pages if sending snippets to your selected provider is inappropriate.
 - Jev receives typed keep/ad/promotion/newsletter/social/cookie/uncertain choices. Page text is untrusted evidence, not instructions. The model cannot emit code or selectors. Responses are validated for type, completeness, valid categories, and numeric ranges. Uncertain results remain visible. Where provided, selected-choice probability and TypeSafe confidence must **both** be at least 0.9; either failing keeps the element visible. Invalid/non-finite values reject the response. Gateway answers without confidence still work. These are conservative operational thresholds, not calibrated accuracy claims.
 - Main content, navigation, ordinary forms, login/payment/security, and paywalls are protected. Cookie-dialog headings and checkbox controls may hide with their containing overlay, but sensitive inputs still block hiding. No links are clicked, consent granted, requests blocked, or access restrictions bypassed. Hiding cookie dialogs is not rejection or tracking protection; use Pause to access consent choices. Hiding ads does not prevent their network/tracking activity.
 - Hidden DOM nodes are not deleted. A temporary attribute, extension-owned stylesheet, and reversible inline display overrides remove occupied space (including inline `!important`). Original style values/priorities are restored; unrelated site style changes are preserved.
@@ -185,7 +194,6 @@ Architecture: `lib/page-context.ts` identifies templates, `lib/dom.ts` extracts 
 ## License
 
 [MIT](LICENSE).
-
 
 <!-- readme-sync:footer:start -->
 <hr>

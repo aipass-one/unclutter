@@ -1,12 +1,16 @@
-export const providers = ["vercel", "typesafe"] as const;
+export const providers = ["vercel", "typesafe", "aipass"] as const;
 export type Provider = (typeof providers)[number];
 
 export function resolveProvider(value: unknown): Provider {
-  return value === "typesafe" ? "typesafe" : "vercel";
+  return value === "typesafe" || value === "aipass" ? value : "vercel";
 }
 
 export function providerLabel(provider: Provider): string {
-  return provider === "typesafe" ? "TypeSafe AI" : "Vercel AI Gateway";
+  return provider === "aipass"
+    ? "AI Pass"
+    : provider === "typesafe"
+      ? "TypeSafe AI"
+      : "Vercel AI Gateway";
 }
 
 export function providerKeyLabel(provider: Provider): string {

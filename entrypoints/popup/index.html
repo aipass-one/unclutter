@@ -53,29 +53,50 @@
         <button id="forget" class="text-button danger">Forget this page type</button>
       </details>
       <details id="connection">
-        <summary><span>Connection</span><span id="key-status">API key required</span></summary>
-        <form id="key-form">
+        <summary>
+          <span>Connection</span><span id="key-status">Sign in to get started</span>
+        </summary>
+        <div class="connection-body">
           <label for="provider">Provider</label
           ><select id="provider">
             <option value="vercel">Vercel AI Gateway</option>
             <option value="typesafe">TypeSafe AI</option>
+            <option value="aipass">AI Pass</option>
           </select>
-          <label for="api-key">API key</label>
-          <div class="key-row">
-            <input
-              id="api-key"
-              type="password"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="Paste Vercel AI Gateway key"
-            /><button type="submit" class="secondary">Save</button>
+          <div id="aipass-connection">
+            <p class="disclosure">
+              Use Jev with your AI Pass account. No API key needed. New analyses use your AI Pass
+              balance; saved rules are free to reuse.
+            </p>
+            <button id="aipass-login" type="button" class="primary">Sign in with AI Pass</button>
+            <p id="aipass-status" role="status" class="disclosure"></p>
+            <a href="https://aipass.one" target="_blank" rel="noopener noreferrer"
+              >Manage AI Pass account ↗</a
+            >
+            <button id="aipass-logout" type="button" class="text-button" hidden>
+              Disconnect AI Pass
+            </button>
           </div>
-          <p class="disclosure">
-            Stored on this device in extension storage, not encrypted or synced. Never sent to
-            websites.
-          </p>
-          <button id="remove-key" type="button" class="text-button" hidden>Remove saved key</button>
-        </form>
+          <form id="key-form" hidden>
+            <label for="api-key">API key</label>
+            <div class="key-row">
+              <input
+                id="api-key"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Paste Vercel AI Gateway key"
+              /><button type="submit" class="secondary">Save</button>
+            </div>
+            <p class="disclosure">
+              Stored on this device in extension storage, not encrypted or synced. Never sent to
+              websites.
+            </p>
+            <button id="remove-key" type="button" class="text-button" hidden>
+              Remove saved key
+            </button>
+          </form>
+        </div>
       </details>
     </main>
     <footer>

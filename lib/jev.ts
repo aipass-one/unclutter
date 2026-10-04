@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { categories, type Candidate, type Rule, type Snapshot } from "./model";
 import type { Provider } from "./providers";
+import { AIPASS_CLIENT_ID, AIPASS_DECISIONS, AIPASS_MODEL, discoverAiPassJev } from "./aipass";
 
 export const ENDPOINT = "https://ai-gateway.vercel.sh/v4/ai/evaluation-model";
 export const TYPESAFE_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
@@ -72,27 +73,37 @@ export function evaluationCall(
   snapshot: Snapshot,
   key: string,
   provider: Provider = "vercel",
+  clientId: string = AIPASS_CLIENT_ID,
+  model: string = AIPASS_MODEL,
 ): { url: string; init: RequestInit } {
   const direct = provider === "typesafe";
+  const aipass = provider === "aipass";
+  if (aipass && !clientId) throw new Error("AI Pass client is not configured.");
   const request = evaluationRequest(snapshot);
   return {
-    url: direct ? TYPESAFE_ENDPOINT : ENDPOINT,
+    url: aipass ? AIPASS_DECISIONS : direct ? TYPESAFE_ENDPOINT : ENDPOINT,
     init: {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
-        ...(direct
-          ? {}
-          : {
-              "ai-gateway-protocol-version": "0.0.1",
-              "ai-gateway-auth-method": "api-key",
-              "ai-evaluation-model-specification-version": "4",
-              "ai-model-id": "typesafe-ai/jev",
-            }),
+        ...(aipass
+          ? { "X-AIPass-OAuth-Client-Id": clientId }
+          : direct
+            ? {}
+            : {
+                "ai-gateway-protocol-version": "0.0.1",
+                "ai-gateway-auth-method": "api-key",
+                "ai-evaluation-model-specification-version": "4",
+                "ai-model-id": "typesafe-ai/jev",
+              }),
       },
-      body: JSON.stringify(direct ? { ...request, model: "jev-latest" } : request),
+      body: JSON.stringify(
+        aipass ? { ...request, model } : direct ? { ...request, model: "jev-latest" } : request,
+      ),
       signal: AbortSignal.timeout(25_000),
+      credentials: "omit",
+      redirect: "error",
     },
   };
 }
@@ -101,21 +112,27 @@ export async function evaluate(
   snapshot: Snapshot,
   key: string,
   provider: Provider = "vercel",
+  clientId: string = AIPASS_CLIENT_ID,
 ): Promise<Rule[]> {
   if (!snapshot.candidates.length) return [];
-  const { url, init } = evaluationCall(snapshot, key, provider);
+  const model = provider === "aipass" ? await discoverAiPassJev() : undefined;
+  const { url, init } = evaluationCall(snapshot, key, provider, clientId, model);
   const response = await fetch(url, init);
   if (!response.ok) {
     const advice =
-      provider === "typesafe" && (response.status === 401 || response.status === 403)
-        ? "Check your TypeSafe API key."
-        : response.status === 401
-          ? "Check your Gateway API key."
-          : response.status === 403
-            ? "Check Gateway credits and model access."
-            : response.status === 429
-              ? "Rate limited. Try again later."
-              : "Try again later.";
+      provider === "aipass" && response.status === 401
+        ? "Your AI Pass session was rejected. Disconnect and sign in again."
+        : provider === "aipass" && (response.status === 402 || response.status === 403)
+          ? "Check your AI Pass balance and this app's access at aipass.one."
+          : provider === "typesafe" && (response.status === 401 || response.status === 403)
+            ? "Check your TypeSafe API key."
+            : response.status === 401
+              ? "Check your Gateway API key."
+              : response.status === 403
+                ? "Check Gateway credits and model access."
+                : response.status === 429
+                  ? "Rate limited. Try again later."
+                  : "Try again later.";
     throw new Error(`Jev request failed: HTTP ${response.status}. ${advice}`);
   }
   return rulesFromAnswers(await response.json(), snapshot.candidates);

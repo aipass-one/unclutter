@@ -8,3 +8,5 @@ node_modules/
 *.pfx
 *.log
 .DS_Store
+.aipass/project-grant.json
+.qa/

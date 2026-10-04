@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "projectFingerprint": "c4dee666-8944-478e-8006-b66ee54c971c",
+  "path": "native-oauth",
+  "appName": "Unclutter",
+  "clientId": "",
+  "oauthClientIdempotencyKey": "oauth-client:v1",
+  "chromiumExtensionId": "gdlmdfabmldgalgponcbceehpgeipmpl",
+  "chromiumPublicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoVlvpBrYN9ellvVQGO0dgnfnnJxnqD1I3s8JfKfLYsUDG0DBIWfW54tFDEQzJsqR2qYhPgqHcK7ppReFb+0RTZ7njcnRmUBLCdNRQ7A6aNX55LMfM5wMNojwLoJODOMyBEQsdSd7XRAgp44MJTutMMD0epFVn2TlDK5S2Ac0BXX3ndcncJgFLTukjuzI+1d8PnCSJ2BFF4f7DLOXAZthYbnct0fMmWgbFF4omI4XPy/zNC+ED94fGit6pXsHPfaxZJhzIqXY35Usdr2CAxkmIiF+8F87RPlrZCRsDaortWIYqRCwj/3CRbvSg/RGMTZku0WapWIpQ91kyIzmbAPd2QIDAQAB",
+  "redirectUris": ["https://gdlmdfabmldgalgponcbceehpgeipmpl.chromiumapp.org/aipass"]
+}

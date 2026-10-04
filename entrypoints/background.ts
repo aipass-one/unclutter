@@ -2,11 +2,13 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 import { evaluate } from "../lib/jev";
 import { providers, providerKeyLabel, resolveProvider } from "../lib/providers";
+import { AIPASS_SESSION_KEY, createAiPassAuth } from "../lib/aipass";
 import {
   contextSchema,
   POLICY_VERSION,
   ANALYSIS_VERSION,
   shouldAutoAnalyze,
+  hasConnection,
   profileSchema,
   snapshotSchema,
   unwrap,
@@ -20,6 +22,8 @@ import {
 
 const uiMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("settings") }),
+  z.object({ type: z.literal("aipassLogin") }),
+  z.object({ type: z.literal("aipassLogout") }),
   z.object({
     type: z.literal("saveKey"),
     key: z.string().trim().min(1).max(1000),
@@ -55,6 +59,15 @@ export default defineBackground(() => {
   const jobs = new Map<string, Promise<void>>();
   const tabJobs = new Set<number>();
   const tabErrors = new Map<number, string>();
+  const auth = createAiPassAuth({
+    read: async () => (await browser.storage.local.get(AIPASS_SESSION_KEY))[AIPASS_SESSION_KEY],
+    write: async (session) => {
+      if (session) await browser.storage.local.set({ [AIPASS_SESSION_KEY]: session });
+      else await browser.storage.local.remove(AIPASS_SESSION_KEY);
+    },
+    redirectUrl: () => browser.identity.getRedirectURL("aipass"),
+    launch: (url) => browser.identity.launchWebAuthFlow({ url, interactive: true }),
+  });
   // Chrome restricts storage to trusted extension contexts. Firefox lacks this
   // API; content code still never reads storage or receives credentials.
   void browser.storage.local
@@ -66,6 +79,7 @@ export default defineBackground(() => {
       enabled: data.enabled !== false,
       apiKey: typeof data.apiKey === "string" ? data.apiKey : "",
       provider: resolveProvider(data.provider),
+      aipassConnected: (await auth.status()).connected,
       mode: data.mode === "auto" ? "auto" : "manual",
     };
   };
@@ -131,8 +145,12 @@ export default defineBackground(() => {
       const before = await profile(snapshot.context);
       const attempt = (await browser.storage.local.get(attemptKey))[attemptKey];
       if (automatic && !shouldAutoAnalyze(config, before, !!attempt)) return;
-      if (!config.apiKey)
-        throw new Error(`Add your ${providerKeyLabel(config.provider)} API key first.`);
+      if (!hasConnection(config))
+        throw new Error(
+          config.provider === "aipass"
+            ? "Sign in with AI Pass first."
+            : `Add your ${providerKeyLabel(config.provider)} API key first.`,
+        );
       if (!config.enabled) throw new Error("Enable Unclutter before analyzing.");
       tabJobs.add(tabId);
       tabErrors.delete(tabId);
@@ -140,9 +158,16 @@ export default defineBackground(() => {
       // must not create a retry loop across navigation or another tab.
       await browser.storage.local.set({ [attemptKey]: { startedAt: Date.now(), error: null } });
       await badge(tabId);
-      const rules = await evaluate(snapshot, config.apiKey, config.provider);
+      const authRevision = auth.revision();
+      const credential = config.provider === "aipass" ? await auth.accessToken() : config.apiKey;
+      const rules = await evaluate(snapshot, credential, config.provider);
       const latestConfig = await settings();
       if (!latestConfig.enabled || (automatic && latestConfig.mode !== "auto")) return;
+      if (
+        latestConfig.provider !== config.provider ||
+        (config.provider === "aipass" && auth.revision() !== authRevision)
+      )
+        return;
       const current = snapshotSchema.parse(await send<Snapshot>(tabId, "snapshot"));
       if (current.url !== snapshot.url || current.context.key !== snapshot.context.key)
         throw new Error("Page changed during analysis. Result discarded.");
@@ -195,7 +220,8 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
     const handle = async (): Promise<unknown> => {
       if (sender.id !== browser.runtime.id) throw new Error("Untrusted sender.");
-      if (sender.tab) {
+      const fromPopup = sender.url === browser.runtime.getURL("/popup.html");
+      if (sender.tab && !fromPopup) {
         const message = pageMessage.parse(raw);
         if (
           sender.frameId !== 0 ||
@@ -221,22 +247,42 @@ export default defineBackground(() => {
         return {
           profile: saved,
           enabled: config.enabled,
-          autoEnabled: config.mode === "auto" && !!config.apiKey,
+          autoEnabled: config.mode === "auto" && hasConnection(config),
         };
       }
-      if (sender.url !== browser.runtime.getURL("/popup.html"))
-        throw new Error("Popup access required.");
+      if (!fromPopup) throw new Error("Popup access required.");
       const message = uiMessage.parse(raw);
       if (message.type === "settings") {
         const config = await settings();
         return {
           enabled: config.enabled,
           hasKey: !!config.apiKey,
+          connected: hasConnection(config),
+          aipass: await auth.status(),
           provider: config.provider,
           mode: config.mode,
         };
       }
+      if (message.type === "aipassLogin") {
+        await browser.storage.local.set({ provider: "aipass" });
+        // The action popup closes when Chrome opens OAuth. Return immediately;
+        // reopening the popup reads the background's durable session/status.
+        void auth
+          .connect()
+          .then(broadcast)
+          .catch(() => undefined);
+        return null;
+      }
+      if (message.type === "aipassLogout") {
+        try {
+          await auth.disconnect();
+        } finally {
+          await broadcast();
+        }
+        return null;
+      }
       if (message.type === "saveKey") {
+        if (message.provider === "aipass") throw new Error("Use Sign in with AI Pass.");
         await browser.storage.local.set({ apiKey: message.key, provider: message.provider });
         return null;
       }

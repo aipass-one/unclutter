@@ -64,6 +64,7 @@ export type Settings = {
   enabled: boolean;
   apiKey: string;
   provider: Provider;
+  aipassConnected?: boolean;
   mode: "manual" | "auto";
 };
 export function shouldAutoAnalyze(
@@ -74,10 +75,13 @@ export function shouldAutoAnalyze(
   return (
     settings.enabled &&
     settings.mode === "auto" &&
-    !!settings.apiKey &&
+    hasConnection(settings) &&
     !attempted &&
     (!profile || (profile.enabled && profile.analysisVersion < ANALYSIS_VERSION))
   );
+}
+export function hasConnection(settings: Settings): boolean {
+  return settings.provider === "aipass" ? !!settings.aipassConnected : !!settings.apiKey;
 }
 export type Reply<T> = { ok: true; data: T } | { ok: false; error: string };
 export function unwrap<T>(reply: Reply<T>): T {
