@@ -147,6 +147,7 @@ TypeSafe direct uses `POST https://api.typesafe.ai/v1/systemone`, Bearer authent
 - Automatic attempts are deduplicated across tabs and persisted before the request. Failure/interruption does not trigger automatic retries; click **Analyze page / Re-analyze** to retry.
 - Cookie overlays (including Sourcepoint's session-numbered iframe/container IDs and BBC's `ngasCookiePrompt`) are eligible for visual hiding. No Accept/Reject buttons are clicked and no consent choice is written.
 - Empty ad wrappers and their reserved-height/padding/advertisement labels collapse too, stopping before useful sibling content. Normal overflow-based cookie scroll locks are released while hiding the overlay and restored when paused.
+- Video/audio elements and YouTube player controls, including **Skip ad**, stay visible. Player containers and their ancestors are protected from both new analysis and saved rules. Unclutter does not block or skip ads playing inside a video.
 - Toolbar badge: green **ON** = saved and active; gray **OFF** = paused; amber **…** = analyzing; red **!** = failed. Tooltip includes actual hidden element count.
 - **Pause / Resume** controls the current page type across tabs. The header switch disables the whole extension. Both restore hidden elements immediately.
 - **Re-analyze** replaces this template's rules while preserving disabled rules that are still identified. Failed, malformed, or stale responses leave existing rules unchanged.
