@@ -4,6 +4,10 @@ const structural = 'html,body,main,article,nav,[role="main"],[role="navigation"]
 const sensitive =
   'input[type="password"],input[type="email"],input[type="text"],input:not([type]),textarea,[contenteditable="true"]';
 const protectedSelector = `${structural},header,h1,form,input,textarea,select,[contenteditable="true"],dialog`;
+// Player ad containers also hold Skip ad, playback and accessibility controls.
+// Protect the whole player, including shells/controls mounted before the video.
+const mediaSelector =
+  'video,audio,#movie_player,.html5-video-player,ytd-player,ytm-player,[class^="ytp-"],[class*=" ytp-"]';
 const clutter =
   /(?:^|[-_\s])(?:ad|ads|advert|advertisement|advertising|sponsor|sponsored|promo|promotion|banner|newsletter|subscribe|subscription|upsell|popup|modal|overlay|share|social|recommendations|related|cookie|consent)(?:$|[-_\s])/i;
 // Stable vendor prefixes survive per-session numeric IDs. BBC's public ad
@@ -31,6 +35,8 @@ export function isCookieNotice(el: Element): boolean {
 }
 
 export function isProtected(el: Element): boolean {
+  // This guard also runs when applying cached rules and collapsing empty parents.
+  if (el.closest(mediaSelector) || el.querySelector(mediaSelector)) return true;
   const cookie = isCookieNotice(el);
   // Cookie controls may contain headings/checkbox forms. Never weaken core
   // content, credential, payment, authentication or native-modal protections.
